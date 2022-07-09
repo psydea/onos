@@ -4,7 +4,9 @@ java_library(
 
 COMPILE_DEPS = CORE_DEPS + KRYO + CLI + [
     "//core/store/serializers:onos-core-serializers",
-    "//core/store/primitives:onos-core-primitives",
+    "//utils/rest:onlab-rest",
+    "@javax_ws_rs_api//jar",
+    "@jackson_databind//jar"
 ]
 
 osgi_jar_with_tests(
@@ -12,6 +14,7 @@ osgi_jar_with_tests(
     karaf_command_packages = ["org.shihyanproject.controllflow"],
     resources = glob(["src/main/resources/**"]),
     resources_root = "src/main/resources",
+    web_context = "/onos/v1/controllflow",
     deps = COMPILE_DEPS,
 )
 

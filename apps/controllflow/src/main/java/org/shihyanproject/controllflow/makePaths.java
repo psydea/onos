@@ -35,8 +35,6 @@ public class makePaths extends AbstractShellCommand {
         String[] temp;
         String delimeter = ",";
 
-        print("src size=" + srcString + "Dst size=" + dstString + "\n");
-
         srcString = srcString.substring(1,srcString.length()-1);
         temp = srcString.split(delimeter);
         for(String point :  temp){
@@ -48,7 +46,5 @@ public class makePaths extends AbstractShellCommand {
         for(String point :  temp){
             dstPoint.add(ConnectPoint.deviceConnectPoint(point));
         }
-
-        print("src size=" + srcPoint.size() + "Dst size=" + dstPoint.size() + "\n");
     }
 }

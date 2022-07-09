@@ -88,32 +88,12 @@ public class controllflow {
     TopologyGraph TGraph;
     HostId HostId_Src,HostId_Des;
     ApplicationId appId;
+    int times=0;
 
     List<VlanId> Vlanlist = new ArrayList<>();
 
     int num=10;
 
-    /*
-    // Get Srouce IP and Destination IP through IPv4 Packet
-    private PacketProcessor processor = new PacketProcessor() {
-        @Override
-        public void process(PacketContext context) {
-            InboundPacket Ipkt = context.inPacket();
-            Ethernet ethPkt = Ipkt.parsed();
-
-            if (ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
-                MacAddress MacSrc = ethPkt.getSourceMAC();
-                MacAddress MacDes = ethPkt.getDestinationMAC();
-                HostId_Src = HostId.hostId(MacSrc);
-                HostId_Des = HostId.hostId(MacDes);
-                log.info(MacSrc.toString());
-                log.info(HostId_Src.toString());
-                log.info(getPaths_test(HostId_Src,HostId_Des));
-            }
-
-        }
-    };
-*/
     // Init
     @Activate
     protected void activate() {
@@ -122,7 +102,6 @@ public class controllflow {
         coreService.getClass();
         flowRuleService.getClass();
         appId = coreService.registerApplication("org.onosproject.controllflow");
-        //packetService.addProcessor(processor,PacketProcessor.director(0));
         log.info("Started");
     }
 
@@ -142,130 +121,39 @@ public class controllflow {
         log.info("Reconfigured");
     }
 
-    // To print all device id
-    public String getHost() {
-        String show = "\n";
-        Iterable<Device> devices = deviceService.getDevices();
-        for (Device d : devices) {
-            Set<Host> hostTable = hostService.getConnectedHosts(d.id());
-            for (Host host : hostTable) {
-                show += (host.toString() + "\n");
+    /*  Delete Flow Entry
+        Input: Application ID
+     */
+    public void DeleteFlowEntry(String id) {
+        ApplicationId DeleteApplicationID = coreService.registerApplication(String.valueOf(id));
+        flowRuleService.removeFlowRulesById(DeleteApplicationID);
+    }
+
+    /*  Add Flow Entry
+        Input: 1. Source ConnectPoint List
+               2. Destination ConnectPoint List
+     */
+    public void AddFlowEntry(List<ConnectPoint> src, List<ConnectPoint> dst) {
+        FlowAnalyze FA = new FlowAnalyze();
+        times+=1;
+        FA.times = times;
+        FA.coreService = coreService;
+        FA.pathService = pathService;
+        FA.flowRuleService = flowRuleService;
+        FA.Vlanlist = Vlanlist;
+        FA.createFlowEntry(src,dst);
+    }
+
+    public List<FlowEntry> ShowFlowEntry() {
+        ApplicationId appid;
+        List<FlowEntry>  FlowEntryList = new ArrayList<>();
+        for( int i=0 ; i<times ; i++ ) {
+            appid = coreService.registerApplication(String.valueOf(times));
+            for( FlowEntry flow:flowRuleService.getFlowEntriesById(appid)) {
+                FlowEntryList.add(flow);
             }
         }
-        return show;
-    }
-
-    /* To get device info
-       return string type of value*/
-    public String getDevices() {
-        String show = "\n";
-        Iterable<Device> devices = deviceService.getDevices();
-        for (Device d : devices) {
-            show += (d.toString() + "\n");
-        }
-        return show;
-    }
-
-    /* To get path,disjoin path and k shortest path through device id
-        return string type of value*/
-    public String getPaths_test(DeviceId DeviceId_Src, DeviceId DeviceId_Des) {
-        Set<Path> pathTable = pathService.getPaths(DeviceId_Src, DeviceId_Des);
-        Set<DisjointPath> DisjoingPathTable = pathService.getDisjointPaths(DeviceId_Src,DeviceId_Des);
-        Stream<Path> KShortestPathTable = pathService.getKShortestPaths(DeviceId_Src,DeviceId_Des);
-        String printPath = "printPath: "+pathTable.toString()+"\n";
-        String printDisjoinPath = "printDisjoinPath: " + DisjoingPathTable.toString()+"\n";
-        Object [] ObjectKShortestPath = KShortestPathTable.toArray();
-        String printKShortestPath = "printKShortestPath: ";
-        for (Object O:ObjectKShortestPath) {
-            printKShortestPath += O.toString();
-            printKShortestPath += " ";
-        }
-        printKShortestPath += "\n";
-        printPath+=printDisjoinPath;
-
-        return printPath;
-    }
-
-    /* To get flow entry
-       return string type of value */
-    public String getFlowEntry(Iterable<Device> devices) {
-        String flowEntry = "";
-        for (Device d : devices) {
-            for (FlowEntry r : flowRuleService.getFlowEntries(d.id())) {
-                flowEntry += r.toString();
-                flowEntry += "\n";
-            }
-        }
-        return flowEntry;
-    }
-
-    /* To get flow entry
-       return string type of value  */
-    public String getFlowEntry(DeviceId deviceID) {
-        String flowEntry = "";
-        for (FlowEntry r : flowRuleService.getFlowEntries(deviceID)) {
-            log.info( "Flow App ID" + String.valueOf(r.appId()));
-            log.info( "Application ID" + String.valueOf(appId.id()));
-            flowEntry += r.toString();
-            flowEntry += "\n";
-        }
-        return flowEntry;
-    }
-
-    public void createFlowRuleIn(DeviceId devices,VlanId vlan, PortNumber HostPort,PortNumber DevicePort) {
-        // match
-        TrafficSelector.Builder trafficS_In = DefaultTrafficSelector.builder();
-        trafficS_In.matchEthType(Ethernet.TYPE_IPV4)
-                .matchIPProtocol(IPv4.PROTOCOL_ICMP);
-
-        // action
-        TrafficTreatment.Builder trafficT = DefaultTrafficTreatment.builder();
-        trafficT.pushVlan()
-                .setVlanId(vlan)
-                .setOutput(DevicePort)
-                .immediate();
-
-        // rule
-        FlowRule.Builder flowRuleB_In = DefaultFlowRule.builder();
-        flowRuleB_In.withSelector(trafficS_In.build())
-                .withTreatment(trafficT.build())
-                .forDevice(devices)
-                .fromApp(appId)
-                .makePermanent()
-                .withPriority(num);
-        flowRuleService.applyFlowRules(flowRuleB_In.build());
-        num++;
-    }
-
-    public void createFlowRuleOut(DeviceId devices, VlanId vlan, PortNumber HostPort) {
-        // match
-        TrafficSelector.Builder trafficS_Out = DefaultTrafficSelector.builder();
-        trafficS_Out.matchEthType(Ethernet.TYPE_IPV4)
-                .matchIPProtocol(IPv4.PROTOCOL_ICMP)
-                .matchVlanId(vlan);
-        // action
-        TrafficTreatment.Builder trafficT_Out = DefaultTrafficTreatment.builder();
-        trafficT_Out.popVlan()
-                .setOutput(HostPort);
-        // rule
-        FlowRule.Builder flowRuleB_Out = DefaultFlowRule.builder();
-        flowRuleB_Out.withSelector(trafficS_Out.build())
-                .withTreatment(trafficT_Out.build())
-                .forDevice(devices)
-                .fromApp(appId)
-                .makePermanent()
-                .withPriority(num);
-        flowRuleService.applyFlowRules(flowRuleB_Out.build());
-        num++;
-    }
-
-    public void GetPaths(List<ConnectPoint> src, List<ConnectPoint> dst) {
-        FlowAnalyze fa = new FlowAnalyze();
-        fa.appId = appId;
-        fa.pathService = pathService;
-        fa.flowRuleService = flowRuleService;
-        fa.Vlanlist = Vlanlist;
-        fa.createFlowEntry(src,dst);
+        return FlowEntryList;
     }
 }
 
