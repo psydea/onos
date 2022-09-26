@@ -40,7 +40,7 @@ public class FlowAnalyze {
     private Set<ConnectPoint> FirstNodeSet = new LinkedHashSet<>();
     private Set<ConnectPoint> EndNodeSet = new LinkedHashSet<>();
     private Set<ConnectPoint> NodeSet = new LinkedHashSet<>();
-    protected List<VlanId> Vlanlist;
+    protected VlanId Vlan;
 
     private Map<DeviceId,Set<PortNumber>> FirstMap = new HashMap<>();
     private Map<DeviceId,Set<PortNumber>> EndMap = new HashMap<>();
@@ -63,17 +63,30 @@ public class FlowAnalyze {
     public void createFlowEntry(List<ConnectPoint> src,List<ConnectPoint> dst) {
         VlanId vlanId = chooseVlan();
         appid = coreService.registerApplication(String.valueOf(times));
+        try {
+            for(int i=0;i<src.size();i++) {
+                if( !FirstNodeSet.contains(src.get(i)) ) {
+                    FirstNodeSet.add(src.get(i));
+                }
+            }
+        }catch (IndexOutOfBoundsException IndexOutException) {
+            log.error("Source ConnectPoint Index Error");
+        }catch (Exception e) {
+            log.error("Source Node Error");
+        }
 
-        for(int i=0;i<src.size();i++) {
-            if( !FirstNodeSet.contains(src.get(i)) ) {
-                FirstNodeSet.add(src.get(i));
+        try {
+            for(int i=0;i<dst.size();i++) {
+                if( !EndNodeSet.contains(dst.get(i)) ) {
+                    EndNodeSet.add(dst.get(i));
+                }
             }
+        }catch (IndexOutOfBoundsException IndexOutException) {
+            log.error("Destination ConnectPoint Index Error");
+        }catch (Exception e) {
+            log.error("Destination Node Error");
         }
-        for(int i=0;i<dst.size();i++) {
-            if( !EndNodeSet.contains(dst.get(i)) ) {
-                EndNodeSet.add(dst.get(i));
-            }
-        }
+
 
         for( ConnectPoint SourcePoint:FirstNodeSet ) {
             for( ConnectPoint DestinationPoint:EndNodeSet ) {
@@ -87,30 +100,34 @@ public class FlowAnalyze {
         FirstFlowRule(vlanId);
         NodeFlowRule(vlanId);
         EndFlowRule(vlanId);
+        log.info("Created");
     }
 
     private void GetPaths(DeviceId Source, DeviceId Destination) {
-        log.info("GetPath:"+Source.toString()+" -> "+Destination.toString());
-        Set<Path> pathTable = pathService.getPaths(Source, Destination);
-        Object [] ObjectPath = pathTable.toArray();
-        DefaultPath PathInfo = (DefaultPath) ObjectPath[0];
-        List<Link> LinkList = PathInfo.links();
-        DefaultLink LinkInfo;
-        ConnectPoint LinkSource;
-        for(int i=0;i<LinkList.size();i++) {
-            LinkInfo = (DefaultLink) LinkList.get(i);
-            LinkSource = LinkInfo.src();
-            if( i==0 ) {
-                Set<PortNumber> PortSet = new LinkedHashSet<>();
-                if( FirstPort.containsKey(LinkSource.deviceId()) ) {
-                    PortSet = FirstPort.get(LinkSource.deviceId());
+        try {
+            Set<Path> pathTable = pathService.getPaths(Source, Destination);
+            Object [] ObjectPath = pathTable.toArray();
+            DefaultPath PathInfo = (DefaultPath) ObjectPath[0];
+            List<Link> LinkList = PathInfo.links();
+            DefaultLink LinkInfo;
+            ConnectPoint LinkSource;
+            for(int i=0;i<LinkList.size();i++) {
+                LinkInfo = (DefaultLink) LinkList.get(i);
+                LinkSource = LinkInfo.src();
+                if( i==0 ) {
+                    Set<PortNumber> PortSet = new LinkedHashSet<>();
+                    if( FirstPort.containsKey(LinkSource.deviceId()) ) {
+                        PortSet = FirstPort.get(LinkSource.deviceId());
+                    }
+                    PortSet.add(LinkSource.port());
+                    FirstPort.put(LinkSource.deviceId(),PortSet);
                 }
-                PortSet.add(LinkSource.port());
-                FirstPort.put(LinkSource.deviceId(),PortSet);
+                else if( !NodeSet.contains(LinkSource) ) {
+                    NodeSet.add(LinkSource);
+                }
             }
-            else if( !NodeSet.contains(LinkSource) ) {
-                NodeSet.add(LinkSource);
-            }
+        }catch(Exception e) {
+            log.error("GetPaths Error");
         }
 
         ArrangeNodeInfo("Node");
@@ -120,6 +137,7 @@ public class FlowAnalyze {
         Iterator< Map.Entry<DeviceId,Set<PortNumber>> > itera = NodeMap.entrySet().iterator();
         Map.Entry<DeviceId,Set<PortNumber>> entry;
         Set<PortNumber> PortSet;
+        long cookie = 281476059291414L;
         while( itera.hasNext() ) {
             entry = itera.next();
             PortSet = entry.getValue();
@@ -140,9 +158,9 @@ public class FlowAnalyze {
             flowRuleB_In.withSelector(trafficS_In.build())
                     .withTreatment(trafficT.build())
                     .forDevice(entry.getKey())
-                    .fromApp(appid)
                     .makePermanent()
-                    .withPriority(PriorityNum);
+                    .withPriority(PriorityNum)
+                    .withCookie(cookie);
 
             flowRuleService.applyFlowRules(flowRuleB_In.build());
         }
@@ -152,6 +170,7 @@ public class FlowAnalyze {
         Iterator< Map.Entry<DeviceId,Set<PortNumber>> > DeviceIterator = FirstMap.entrySet().iterator();
         Map.Entry<DeviceId,Set<PortNumber>> DeviceEntry,PortEntry;
         Set<PortNumber> DeviceSet,PortSet;
+        long cookie = 281476059291414L;
         while( DeviceIterator.hasNext() ) {
             // Get device entry and
             DeviceEntry = DeviceIterator.next();
@@ -186,9 +205,9 @@ public class FlowAnalyze {
                 flowRuleB_In.withSelector(trafficS_In.build())
                         .withTreatment(trafficT.build())
                         .forDevice(DeviceEntry.getKey())
-                        .fromApp(appid)
                         .makePermanent()
-                        .withPriority(PriorityNum);
+                        .withPriority(PriorityNum)
+                        .withCookie(cookie);
 
                 flowRuleService.applyFlowRules(flowRuleB_In.build());
                 log.info("First Node Entry=" + DeviceEntry + " Key=" + DeviceEntry.getKey() + " Value=" + DeviceEntry.getValue() + "\n");
@@ -201,6 +220,7 @@ public class FlowAnalyze {
         Iterator< Map.Entry<DeviceId,Set<PortNumber>> > Iterator = EndMap.entrySet().iterator();
         Map.Entry<DeviceId,Set<PortNumber>> entry;
         Set<PortNumber> PortSet;
+        long cookie = Long.parseLong("281476059291414L");
         while( Iterator.hasNext() ) {
             entry = Iterator.next();
             PortSet = entry.getValue();
@@ -223,22 +243,23 @@ public class FlowAnalyze {
             flowRuleB_In.withSelector(trafficS_In.build())
                     .withTreatment(trafficT.build())
                     .forDevice(entry.getKey())
-                    .fromApp(appid)
                     .makePermanent()
-                    .withPriority(PriorityNum);
+                    .withPriority(PriorityNum)
+                    .withCookie(cookie);
 
             flowRuleService.applyFlowRules(flowRuleB_In.build());
         }
     }
 
-    private VlanId chooseVlan() {
+    private VlanId chooseVlan() {/*
         short vlan = 2;
         while(Vlanlist.contains(VlanId.vlanId(vlan))) {
             vlan += 1;
         }
         Vlanlist.add(VlanId.vlanId(vlan));
 
-        return VlanId.vlanId(vlan);
+        return VlanId.vlanId(vlan);*/
+        return VlanId.vlanId();
     }
 
     private void ArrangeNodeInfo(String option) {
