@@ -1,6 +1,5 @@
 package org.shihyanproject.controllflow;
 
-import org.apache.karaf.shell.api.action.Argument;
 import org.apache.karaf.shell.api.action.Command;
 import org.apache.karaf.shell.api.action.Option;
 import org.apache.karaf.shell.api.action.lifecycle.Service;
@@ -11,8 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@Command(scope = "onos",name="makepaths",description = "test for 0325")
-public class makePaths extends AbstractShellCommand {
+@Command(scope = "onos",name="AddFlowEntry",description = "test for 0325")
+public class AddFlowEntry extends AbstractShellCommand {
 
     @Option(name="-s", aliases = "--srcpoint",description = "method",required = true,multiValued = true)
     private String srcString;
@@ -27,11 +26,9 @@ public class makePaths extends AbstractShellCommand {
     protected void doExecute() {
         controllflow service = get(controllflow.class);
         Change();
-        service.GetPaths(srcPoint,dstPoint);
     }
 
     private void Change() {
-        int i;
         String[] temp;
         String delimeter = ",";
 

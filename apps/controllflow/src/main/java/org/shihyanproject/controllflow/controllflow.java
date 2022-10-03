@@ -230,7 +230,7 @@ public class controllflow {
         }
         root.put("Success",1);
         root.put("Message","Search FlowRule Success!");
-        root.putPOJO("Flow List", arrayNode);
+        root.putPOJO("FlowList", arrayNode);
 
         log.info("Search Flow:"+root.toString());
 
@@ -311,6 +311,12 @@ public class controllflow {
             RequestMessage.put("Message","Arrange node information on destination error");
             log.error("Arrange node info on destination error!");
             return RequestMessage;
+        }
+        try {
+            Thread.sleep(10 * 1000);
+            log.info("Stop 1 second");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
 
         try {
