@@ -176,6 +176,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                                         case "UDP":
                                             rule.protocol(IPv4.PROTOCOL_UDP);
                                             break;
+                                            /*
                                         case "ICMP":
                                             rule.protocol(IPv4.PROTOCOL_ICMP);
                                             break;
@@ -184,7 +185,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                                             break;
                                         case "PIM":
                                             rule.protocol(IPv4.PROTOCOL_PIM);
-                                            break;
+                                            break;*/
 
                                     }
                                 }
@@ -196,6 +197,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                                         case "UDP":
                                             rule.protocol(IPv6.PROTOCOL_UDP);
                                             break;
+                                            /*
                                         case "ICMP":
                                             rule.protocol(IPv6.PROTOCOL_ICMP6);
                                             break;
@@ -213,7 +215,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                                             break;
                                         case "ROUTING":
                                             rule.protocol(IPv6.PROTOCOL_ROUTING);
-                                            break;
+                                            break;*/
                                     }
                                 }
                             }catch (NullPointerException e) {
@@ -236,7 +238,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                         // Source port number
                         case 3:
                             try {
-                                rule.srcPort(PortNumber.portNumber(ValueString));
+                                rule.srcPort(ValueString);
                             }catch (Exception e) {
                                 throw new IllegalArgumentException("Port Number Error!",e);
                             }
@@ -257,7 +259,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                         // Destination port number
                         case 5:
                             try {
-                                rule.dstPort(PortNumber.portNumber(ValueString));
+                                rule.dstPort(ValueString);
                             }catch (Exception e) {
                                 throw new IllegalArgumentException("Destination Port Number Error!",e);
                             }

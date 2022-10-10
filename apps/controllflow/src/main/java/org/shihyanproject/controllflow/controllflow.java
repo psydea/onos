@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onlab.packet.Ethernet;
+import org.onlab.packet.IPv4;
+import org.onlab.packet.IPv6;
+import org.onlab.packet.TpPort;
 import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -312,6 +315,8 @@ public class controllflow {
             log.error("Arrange node info on destination error!");
             return RequestMessage;
         }
+
+        // Try to implement stoppage
         try {
             Thread.sleep(10 * 1000);
             log.info("Stop 1 second");
@@ -355,6 +360,7 @@ public class controllflow {
             Set<Path> pathTable = pathService.getPaths(Source, Destination);
             Object [] ObjectPath = pathTable.toArray();
             DefaultPath PathInfo = (DefaultPath) ObjectPath[0];
+            log.info("Path:"+PathInfo.toString());
             List<Link> LinkList = PathInfo.links();
             DefaultLink LinkInfo;
             ConnectPoint LinkSource;
@@ -372,6 +378,7 @@ public class controllflow {
                 else if( !NodeSet.contains(LinkSource) ) {
                     NodeSet.add(LinkSource);
                 }
+
             }
         }catch(Exception e) {
             log.error("GetPaths Error");
@@ -389,24 +396,6 @@ public class controllflow {
             entry = itera.next();
             PortSet = entry.getValue();
             TrafficSelector.Builder trafficS_In = DefaultTrafficSelector.builder();
-            /*
-            if( rule.protocol() != null ) {
-                trafficS_In.matchIPProtocol(rule.protocol().value());
-            }*/
-
-            if( rule.ethernetType() != null ) {
-                trafficS_In.matchEthType(rule.ethernetType().ethType().toShort());
-            }else {
-                trafficS_In.matchEthType(Ethernet.TYPE_IPV4);
-            }
-
-            if( rule.sourcePort() != null ) {
-                trafficS_In.matchInPort(rule.sourcePort());
-            }
-            /*
-            if( rule.destinationPort() != null ) {
-                trafficS_In.match
-            }*/
 
             if( rule.tagVlan() != null ) {
                 trafficS_In.matchVlanId(rule.tagVlan());
@@ -461,13 +450,10 @@ public class controllflow {
             }
 
             for( PortNumber port:DeviceSet ) {
+                log.info("Firtst Device Port:"+port.toString());
                 // match
                 TrafficSelector.Builder trafficS_In = DefaultTrafficSelector.builder();
-
-                /*
-                if( rule.protocol() != null ) {
-                    trafficS_In.matchIPProtocol(rule.protocol().value());
-                }*/
+                trafficS_In.matchInPort(port);
 
                 if( rule.ethernetType() != null ) {
                     trafficS_In.matchEthType(rule.ethernetType().ethType().toShort());
@@ -475,13 +461,30 @@ public class controllflow {
                     trafficS_In.matchEthType(Ethernet.TYPE_IPV4);
                 }
 
-                if( rule.sourcePort() != null ) {
-                    trafficS_In.matchInPort(rule.sourcePort());
+                if( rule.protocol() != 0 ) {
+                    trafficS_In.matchIPProtocol(rule.protocol());
                 }
-                /*
+
+
+                if( rule.sourcePort() != null ) {
+                    TpPort SourcePort = TpPort.tpPort(Integer.parseInt(rule.sourcePort()));
+                    if(rule.protocol() == IPv4.PROTOCOL_TCP || rule.protocol() == IPv6.PROTOCOL_TCP) {
+                        trafficS_In.matchTcpSrc(SourcePort);
+                    }
+                    else {
+                        trafficS_In.matchUdpSrc(SourcePort);
+                    }
+                }
+
                 if( rule.destinationPort() != null ) {
-                    trafficS_In.match
-                }*/
+                    TpPort DestinationPort = TpPort.tpPort(Integer.parseInt(rule.destinationPort()));
+                    if(rule.protocol() == IPv4.PROTOCOL_TCP || rule.protocol() == IPv6.PROTOCOL_TCP) {
+                        trafficS_In.matchTcpDst(DestinationPort);
+                    }
+                    else {
+                        trafficS_In.matchUdpDst(DestinationPort);
+                    }
+                }
 
                 if( rule.tagVlan() != null ) {
                     trafficS_In.matchVlanId(rule.tagVlan());
@@ -512,25 +515,6 @@ public class controllflow {
             PortSet = entry.getValue();
             // match
             TrafficSelector.Builder trafficS_In = DefaultTrafficSelector.builder();
-
-            /*
-            if( rule.protocol() != null ) {
-                trafficS_In.matchIPProtocol(rule.protocol().value());
-            }*/
-
-            if( rule.ethernetType() != null ) {
-                trafficS_In.matchEthType(rule.ethernetType().ethType().toShort());
-            }else {
-                trafficS_In.matchEthType(Ethernet.TYPE_IPV4);
-            }
-
-            if( rule.sourcePort() != null ) {
-                trafficS_In.matchInPort(rule.sourcePort());
-            }
-            /*
-            if( rule.destinationPort() != null ) {
-                trafficS_In.match
-            }*/
 
             if( rule.tagVlan() != null ) {
                 trafficS_In.matchVlanId(rule.tagVlan());
@@ -572,6 +556,7 @@ public class controllflow {
                 PortSet.add(PointPort);
                 NodeMap.put(PointDeviceId,PortSet);
             }
+            log.info("Arrange Node:"+NodeMap.toString());
         }
         else if ( option.equals(("src")) ) {
             for( ConnectPoint Point:FirstNodeSet ) {
@@ -584,6 +569,7 @@ public class controllflow {
                 PortSet.add(PointPort);
                 FirstMap.put(PointDeviceId,PortSet);
             }
+            log.info("Arrange First:"+FirstMap.toString());
         }
         else {
             for( ConnectPoint Point:EndNodeSet ) {
@@ -596,6 +582,7 @@ public class controllflow {
                 PortSet.add(PointPort);
                 EndMap.put(PointDeviceId,PortSet);
             }
+            log.info("Arrange End:"+EndMap.toString());
         }
 
     }

@@ -16,8 +16,8 @@ public final class ControllFlowRule {
     private final byte protocol;
     private final IpAddress sourceIP;
     private final IpAddress destinationIP;
-    private final PortNumber sourcePort;
-    private final PortNumber destinationPort;
+    private final String sourcePort;
+    private final String destinationPort;
     private final String appId;
     private final VlanId tagVlan;
 
@@ -40,7 +40,7 @@ public final class ControllFlowRule {
      * @param srcPoint     source DeviceId and Port
      * @param dstPoint    destination DeviceId and Port
      */
-    private ControllFlowRule(List<ConnectPoint> srcPoint, List<ConnectPoint> dstPoint, EthType.EtherType EthernetType, byte Protocol, IpAddress SourceIP, IpAddress DestinationIP, PortNumber SourcePort, PortNumber DestinationPort, String ApplicationId, VlanId tagVlan) {
+    private ControllFlowRule(List<ConnectPoint> srcPoint, List<ConnectPoint> dstPoint, EthType.EtherType EthernetType, byte Protocol, IpAddress SourceIP, IpAddress DestinationIP, String SourcePort, String DestinationPort, String ApplicationId, VlanId tagVlan) {
         this.srcPoint = srcPoint;
         this.dstPoint = dstPoint;
         this.ethernetType = EthernetType;
@@ -64,8 +64,8 @@ public final class ControllFlowRule {
         private byte protocol = 0;
         private IpAddress sourceIP = null;
         private IpAddress destinationIP = null;
-        private PortNumber sourcePort = null;
-        private PortNumber destinationPort = null;
+        private String sourcePort = null;
+        private String destinationPort = null;
         private String appId = null;
         private VlanId tagVlan = null;
 
@@ -103,12 +103,12 @@ public final class ControllFlowRule {
             return this;
         }
 
-        public Builder srcPort(PortNumber sourcePort) {
+        public Builder srcPort(String sourcePort) {
             this.sourcePort = sourcePort;
             return this;
         }
 
-        public Builder dstPort(PortNumber destinationPort) {
+        public Builder dstPort(String destinationPort) {
             this.destinationPort  = destinationPort;
             return this;
         }
@@ -152,11 +152,11 @@ public final class ControllFlowRule {
         return destinationIP;
     }
 
-    public PortNumber sourcePort() {
+    public String sourcePort() {
         return sourcePort;
     }
 
-    public PortNumber destinationPort() {
+    public String destinationPort() {
         return destinationPort;
     }
 
@@ -178,8 +178,8 @@ public final class ControllFlowRule {
                 .add("protocol",protocol)
                 .add("sourceIP",sourceIP)
                 .add("destinationIP",destinationIP)
-                .add("sourcePort",sourcePort.toString())
-                .add("destinationPort",destinationPort.toString())
+                .add("sourcePort",sourcePort)
+                .add("destinationPort",destinationPort)
                 .add("appId",appId.toString())
                 .add("tagVlan",tagVlan.toString())
                 .toString();
