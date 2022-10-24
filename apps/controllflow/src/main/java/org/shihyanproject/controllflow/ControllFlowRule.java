@@ -14,8 +14,8 @@ public final class ControllFlowRule {
     private final List<ConnectPoint> dstPoint;
     private final EthType.EtherType ethernetType;
     private final byte protocol;
-    private final IpAddress sourceIP;
-    private final IpAddress destinationIP;
+    private final String sourceIP;
+    private final String destinationIP;
     private final String sourcePort;
     private final String destinationPort;
     private final String appId;
@@ -40,7 +40,7 @@ public final class ControllFlowRule {
      * @param srcPoint     source DeviceId and Port
      * @param dstPoint    destination DeviceId and Port
      */
-    private ControllFlowRule(List<ConnectPoint> srcPoint, List<ConnectPoint> dstPoint, EthType.EtherType EthernetType, byte Protocol, IpAddress SourceIP, IpAddress DestinationIP, String SourcePort, String DestinationPort, String ApplicationId, VlanId tagVlan) {
+    private ControllFlowRule(List<ConnectPoint> srcPoint, List<ConnectPoint> dstPoint, EthType.EtherType EthernetType, byte Protocol, String SourceIP, String DestinationIP, String SourcePort, String DestinationPort, String ApplicationId, VlanId tagVlan) {
         this.srcPoint = srcPoint;
         this.dstPoint = dstPoint;
         this.ethernetType = EthernetType;
@@ -62,8 +62,8 @@ public final class ControllFlowRule {
         private List<ConnectPoint> dstPoint = null;
         private EthType.EtherType ethernetType = null;
         private byte protocol = 0;
-        private IpAddress sourceIP = null;
-        private IpAddress destinationIP = null;
+        private String sourceIP = null;
+        private String destinationIP = null;
         private String sourcePort = null;
         private String destinationPort = null;
         private String appId = null;
@@ -93,12 +93,12 @@ public final class ControllFlowRule {
             return this;
         }
 
-        public Builder srcIP(IpAddress sourceIP) {
+        public Builder srcIP(String sourceIP) {
             this.sourceIP = sourceIP;
             return this;
         }
 
-        public Builder dstIP(IpAddress destinationIP) {
+        public Builder dstIP(String destinationIP) {
             this.destinationIP = destinationIP;
             return this;
         }
@@ -144,11 +144,11 @@ public final class ControllFlowRule {
         return protocol;
     }
 
-    public IpAddress sourceIP() {
+    public String sourceIP() {
         return sourceIP;
     }
 
-    public IpAddress destinationIP() {
+    public String destinationIP() {
         return destinationIP;
     }
 

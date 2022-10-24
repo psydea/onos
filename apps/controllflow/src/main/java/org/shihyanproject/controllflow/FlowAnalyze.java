@@ -1,7 +1,8 @@
 package org.shihyanproject.controllflow;
 
-import org.onlab.packet.Ethernet;
-import org.onlab.packet.VlanId;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.ConnectPoint;
@@ -10,12 +11,10 @@ import org.onosproject.net.DefaultPath;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.Link;
 import org.onosproject.net.Path;
-import org.onosproject.net.Port;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.flow.DefaultFlowRule;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
-import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
@@ -23,7 +22,6 @@ import org.onosproject.net.topology.PathService;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -37,17 +35,15 @@ import org.slf4j.LoggerFactory;
 public class FlowAnalyze {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    private Set<ConnectPoint> FirstNodeSet = new LinkedHashSet<>();
-    private Set<ConnectPoint> EndNodeSet = new LinkedHashSet<>();
-    private Set<ConnectPoint> NodeSet = new LinkedHashSet<>();
-    protected VlanId Vlan;
+    private final Set<ConnectPoint> FirstNodeSet = new LinkedHashSet<>();
+    private final Set<ConnectPoint> EndNodeSet = new LinkedHashSet<>();
+    private final Set<ConnectPoint> NodeSet = new LinkedHashSet<>();
+    private final Map<DeviceId,Set<PortNumber>> FirstMap = new HashMap<>();
+    private final Map<DeviceId,Set<PortNumber>> EndMap = new HashMap<>();
+    private final Map<DeviceId,Set<PortNumber>> NodeMap = new HashMap<>();
+    private final Map<DeviceId,Set<PortNumber>> FirstPort = new HashMap<>();
 
-    private Map<DeviceId,Set<PortNumber>> FirstMap = new HashMap<>();
-    private Map<DeviceId,Set<PortNumber>> EndMap = new HashMap<>();
-    private Map<DeviceId,Set<PortNumber>> NodeMap = new HashMap<>();
-    private Map<DeviceId,Set<PortNumber>> FirstPort = new HashMap<>();
-
-    private int PriorityNum = 60000;
+    private final int PriorityNum = 60000;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected PathService pathService;
@@ -57,50 +53,122 @@ public class FlowAnalyze {
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
+    protected ObjectMapper mapper = new ObjectMapper();
+    protected ObjectNode RequestMessage;
 
-    protected int times;
-    protected ApplicationId appid;
-    public void createFlowEntry(List<ConnectPoint> src,List<ConnectPoint> dst) {
-        VlanId vlanId = chooseVlan();
-        appid = coreService.registerApplication(String.valueOf(times));
+    public ObjectNode createRule(ControllFlowRule rule) {
+        ApplicationId appId = coreService.registerApplication(rule.appId());
+        RequestMessage = mapper.createObjectNode();
+
+        // Try to implement stoppage
+        /*
         try {
-            for(int i=0;i<src.size();i++) {
-                if( !FirstNodeSet.contains(src.get(i)) ) {
-                    FirstNodeSet.add(src.get(i));
+            Thread.sleep(10 * 1000);
+            log.info("Stop 1 second");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }*/
+
+        // Clean source and destination point data
+        try {
+            for(int i=0;i<rule.srcPoint().size();i++) {
+                if( !FirstNodeSet.contains(rule.srcPoint().get(i)) ) {
+                    FirstNodeSet.add(rule.srcPoint().get(i));
                 }
             }
         }catch (IndexOutOfBoundsException IndexOutException) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Source connectPoint index error");
             log.error("Source ConnectPoint Index Error");
+            return RequestMessage;
         }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Source node error");
             log.error("Source Node Error");
+            return RequestMessage;
         }
 
         try {
-            for(int i=0;i<dst.size();i++) {
-                if( !EndNodeSet.contains(dst.get(i)) ) {
-                    EndNodeSet.add(dst.get(i));
+            for(int i=0;i<rule.dstPoint().size();i++) {
+                if( !EndNodeSet.contains(rule.dstPoint().get(i)) ) {
+                    EndNodeSet.add(rule.dstPoint().get(i));
                 }
             }
         }catch (IndexOutOfBoundsException IndexOutException) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Destination connect point index error");
             log.error("Destination ConnectPoint Index Error");
+            return RequestMessage;
         }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Destination node error");
             log.error("Destination Node Error");
+            return RequestMessage;
         }
 
-
-        for( ConnectPoint SourcePoint:FirstNodeSet ) {
-            for( ConnectPoint DestinationPoint:EndNodeSet ) {
-                GetPaths( SourcePoint.deviceId(), DestinationPoint.deviceId() );
+        // Get path data
+        try {
+            for( ConnectPoint SourcePoint:FirstNodeSet ) {
+                for( ConnectPoint DestinationPoint:EndNodeSet ) {
+                    GetPaths( SourcePoint.deviceId(), DestinationPoint.deviceId() );
+                }
             }
+        }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Get paths error");
+            log.error("Get Paths Error");
+            return RequestMessage;
         }
 
-        ArrangeNodeInfo("src");
-        ArrangeNodeInfo("dst");
+        // Clean data
+        try {
+            ArrangeNodeInfo("src");
+        }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Arrange node information on source error");
+            log.error("Arrange node info on source error!");
+            return RequestMessage;
+        }
 
-        FirstFlowRule(vlanId);
-        NodeFlowRule(vlanId);
-        EndFlowRule(vlanId);
+        try {
+            ArrangeNodeInfo("dst");
+        }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Arrange node information on destination error");
+            log.error("Arrange node info on destination error!");
+            return RequestMessage;
+        }
+
+        // Add flow rule
+        try {
+            FirstFlowRule(rule,appId);
+        }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Create first node flow rule error");
+            log.error("Create first node flow rule error!");
+            return RequestMessage;
+        }
+        try {
+            NodeFlowRule(rule,appId);
+        }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Create pass node flow rule error");
+            log.error("Create pass node flow rule error!");
+            return RequestMessage;
+        }
+        try {
+            EndFlowRule(rule,appId);
+        }catch (Exception e) {
+            RequestMessage.put("Code",500);
+            RequestMessage.put("Message","Create end node flow rule error");
+            log.error("Create end node flow rule error!");
+            return RequestMessage;
+        }
+        RequestMessage.put("Code",200);
+        RequestMessage.put("Message","Add flow rule success");
         log.info("Created");
+
+        return RequestMessage;
     }
 
     private void GetPaths(DeviceId Source, DeviceId Destination) {
@@ -108,6 +176,7 @@ public class FlowAnalyze {
             Set<Path> pathTable = pathService.getPaths(Source, Destination);
             Object [] ObjectPath = pathTable.toArray();
             DefaultPath PathInfo = (DefaultPath) ObjectPath[0];
+            log.info("Path:"+PathInfo.toString());
             List<Link> LinkList = PathInfo.links();
             DefaultLink LinkInfo;
             ConnectPoint LinkSource;
@@ -125,25 +194,28 @@ public class FlowAnalyze {
                 else if( !NodeSet.contains(LinkSource) ) {
                     NodeSet.add(LinkSource);
                 }
+
             }
         }catch(Exception e) {
             log.error("GetPaths Error");
+            throw new IllegalArgumentException("Get paths error",e);
         }
 
         ArrangeNodeInfo("Node");
     }
 
-    private void NodeFlowRule(VlanId vlan) {
+    private void NodeFlowRule(ControllFlowRule rule, ApplicationId appID) {
         Iterator< Map.Entry<DeviceId,Set<PortNumber>> > itera = NodeMap.entrySet().iterator();
         Map.Entry<DeviceId,Set<PortNumber>> entry;
         Set<PortNumber> PortSet;
-        long cookie = 281476059291414L;
         while( itera.hasNext() ) {
             entry = itera.next();
             PortSet = entry.getValue();
             TrafficSelector.Builder trafficS_In = DefaultTrafficSelector.builder();
-            trafficS_In.matchEthType(Ethernet.TYPE_IPV4)
-                    .matchVlanId(vlan);
+
+            if( rule.tagVlan() != null ) {
+                trafficS_In.matchVlanId(rule.tagVlan());
+            }
 
             // action
             TrafficTreatment.Builder trafficT = DefaultTrafficTreatment.builder();
@@ -154,23 +226,22 @@ public class FlowAnalyze {
             }
 
             // rule
-            FlowRule.Builder flowRuleB_In = DefaultFlowRule.builder();
+            org.onosproject.net.flow.FlowRule.Builder flowRuleB_In = DefaultFlowRule.builder();
             flowRuleB_In.withSelector(trafficS_In.build())
                     .withTreatment(trafficT.build())
                     .forDevice(entry.getKey())
                     .makePermanent()
                     .withPriority(PriorityNum)
-                    .withCookie(cookie);
+                    .fromApp(appID);
 
             flowRuleService.applyFlowRules(flowRuleB_In.build());
         }
     }
 
-    private void FirstFlowRule(VlanId vlan) {
+    private void FirstFlowRule(ControllFlowRule rule, ApplicationId appID) {
         Iterator< Map.Entry<DeviceId,Set<PortNumber>> > DeviceIterator = FirstMap.entrySet().iterator();
         Map.Entry<DeviceId,Set<PortNumber>> DeviceEntry,PortEntry;
         Set<PortNumber> DeviceSet,PortSet;
-        long cookie = 281476059291414L;
         while( DeviceIterator.hasNext() ) {
             // Get device entry and
             DeviceEntry = DeviceIterator.next();
@@ -179,7 +250,7 @@ public class FlowAnalyze {
             // action
             TrafficTreatment.Builder trafficT = DefaultTrafficTreatment.builder();
             trafficT.pushVlan()
-                    .setVlanId(vlan)
+                    .setVlanId(rule.tagVlan())
                     .immediate();
 
             Iterator< Map.Entry<DeviceId,Set<PortNumber>> > itera_Port = FirstPort.entrySet().iterator();
@@ -195,19 +266,71 @@ public class FlowAnalyze {
             }
 
             for( PortNumber port:DeviceSet ) {
+                log.info("Firtst Device Port:"+port.toString());
                 // match
                 TrafficSelector.Builder trafficS_In = DefaultTrafficSelector.builder();
-                trafficS_In.matchEthType(Ethernet.TYPE_IPV4);
                 trafficS_In.matchInPort(port);
 
+                if( rule.ethernetType() != null ) {
+                    trafficS_In.matchEthType(rule.ethernetType().ethType().toShort());
+                }else {
+                    trafficS_In.matchEthType(Ethernet.TYPE_IPV4);
+                }
+
+                if( rule.protocol() != 0 ) {
+                    trafficS_In.matchIPProtocol(rule.protocol());
+                }
+
+                if( rule.sourceIP() != null ) {
+                    if( rule.protocol() == IPv4.PROTOCOL_TCP || rule.protocol() == IPv4.PROTOCOL_UDP) {
+                        trafficS_In.matchIPSrc(IpPrefix.valueOf(rule.sourceIP()));
+                    }
+                    else {
+                        trafficS_In.matchIPv6Src(IpPrefix.valueOf(rule.sourceIP()));
+                    }
+                }
+
+                if( rule.destinationIP() != null ) {
+                    if( rule.protocol() == IPv4.PROTOCOL_TCP || rule.protocol() == IPv4.PROTOCOL_UDP) {
+                        trafficS_In.matchIPDst(IpPrefix.valueOf(rule.destinationIP()));
+                    }
+                    else {
+                        trafficS_In.matchIPv6Dst(IpPrefix.valueOf(rule.destinationIP()));
+                    }
+                }
+
+                if( rule.sourcePort() != null ) {
+                    TpPort SourcePort = TpPort.tpPort(Integer.parseInt(rule.sourcePort()));
+                    if(rule.protocol() == IPv4.PROTOCOL_TCP || rule.protocol() == IPv6.PROTOCOL_TCP) {
+                        trafficS_In.matchTcpSrc(SourcePort);
+                    }
+                    else {
+                        trafficS_In.matchUdpSrc(SourcePort);
+                    }
+                }
+
+                if( rule.destinationPort() != null ) {
+                    TpPort DestinationPort = TpPort.tpPort(Integer.parseInt(rule.destinationPort()));
+                    if(rule.protocol() == IPv4.PROTOCOL_TCP || rule.protocol() == IPv6.PROTOCOL_TCP) {
+                        trafficS_In.matchTcpDst(DestinationPort);
+                    }
+                    else {
+                        trafficS_In.matchUdpDst(DestinationPort);
+                    }
+                }
+
+                if( rule.tagVlan() != null ) {
+                    trafficS_In.matchVlanId(rule.tagVlan());
+                }
+
                 // rule
-                FlowRule.Builder flowRuleB_In = DefaultFlowRule.builder();
+                org.onosproject.net.flow.FlowRule.Builder flowRuleB_In = DefaultFlowRule.builder();
                 flowRuleB_In.withSelector(trafficS_In.build())
                         .withTreatment(trafficT.build())
                         .forDevice(DeviceEntry.getKey())
                         .makePermanent()
                         .withPriority(PriorityNum)
-                        .withCookie(cookie);
+                        .fromApp(appID);
 
                 flowRuleService.applyFlowRules(flowRuleB_In.build());
                 log.info("First Node Entry=" + DeviceEntry + " Key=" + DeviceEntry.getKey() + " Value=" + DeviceEntry.getValue() + "\n");
@@ -216,18 +339,19 @@ public class FlowAnalyze {
         }
     }
 
-    private void EndFlowRule(VlanId vlan) {
+    private void EndFlowRule(ControllFlowRule rule, ApplicationId appID) {
         Iterator< Map.Entry<DeviceId,Set<PortNumber>> > Iterator = EndMap.entrySet().iterator();
         Map.Entry<DeviceId,Set<PortNumber>> entry;
         Set<PortNumber> PortSet;
-        long cookie = Long.parseLong("281476059291414L");
         while( Iterator.hasNext() ) {
             entry = Iterator.next();
             PortSet = entry.getValue();
             // match
             TrafficSelector.Builder trafficS_In = DefaultTrafficSelector.builder();
-            trafficS_In.matchEthType(Ethernet.TYPE_IPV4)
-                    .matchVlanId(vlan);
+
+            if( rule.tagVlan() != null ) {
+                trafficS_In.matchVlanId(rule.tagVlan());
+            }
 
             // action
             TrafficTreatment.Builder trafficT = DefaultTrafficTreatment.builder();
@@ -239,27 +363,16 @@ public class FlowAnalyze {
             }
 
             // rule
-            FlowRule.Builder flowRuleB_In = DefaultFlowRule.builder();
+            org.onosproject.net.flow.FlowRule.Builder flowRuleB_In = DefaultFlowRule.builder();
             flowRuleB_In.withSelector(trafficS_In.build())
                     .withTreatment(trafficT.build())
                     .forDevice(entry.getKey())
                     .makePermanent()
                     .withPriority(PriorityNum)
-                    .withCookie(cookie);
+                    .fromApp(appID);
 
             flowRuleService.applyFlowRules(flowRuleB_In.build());
         }
-    }
-
-    private VlanId chooseVlan() {/*
-        short vlan = 2;
-        while(Vlanlist.contains(VlanId.vlanId(vlan))) {
-            vlan += 1;
-        }
-        Vlanlist.add(VlanId.vlanId(vlan));
-
-        return VlanId.vlanId(vlan);*/
-        return VlanId.vlanId();
     }
 
     private void ArrangeNodeInfo(String option) {
@@ -276,6 +389,7 @@ public class FlowAnalyze {
                 PortSet.add(PointPort);
                 NodeMap.put(PointDeviceId,PortSet);
             }
+            log.info("Arrange Node:"+NodeMap.toString());
         }
         else if ( option.equals(("src")) ) {
             for( ConnectPoint Point:FirstNodeSet ) {
@@ -288,6 +402,7 @@ public class FlowAnalyze {
                 PortSet.add(PointPort);
                 FirstMap.put(PointDeviceId,PortSet);
             }
+            log.info("Arrange First:"+FirstMap.toString());
         }
         else {
             for( ConnectPoint Point:EndNodeSet ) {
@@ -300,6 +415,7 @@ public class FlowAnalyze {
                 PortSet.add(PointPort);
                 EndMap.put(PointDeviceId,PortSet);
             }
+            log.info("Arrange End:"+EndMap.toString());
         }
 
     }

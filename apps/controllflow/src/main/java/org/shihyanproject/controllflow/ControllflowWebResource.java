@@ -4,17 +4,10 @@ package org.shihyanproject.controllflow;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onlab.packet.*;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.ConnectPoint;
-import org.onosproject.net.PortNumber;
-import org.onosproject.net.flow.FlowEntry;
-import org.onosproject.net.flow.TrafficSelector;
-import org.onosproject.net.flow.TrafficTreatment;
-import org.onosproject.net.flow.criteria.Criterion;
-import org.onosproject.net.flow.instructions.Instruction;
 import org.onosproject.rest.AbstractWebResource;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
@@ -29,13 +22,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import static org.onlab.util.Tools.readTreeFromStream;
 
 @Path("flows")
 public class ControllflowWebResource extends AbstractWebResource {
-    private static final int MULTI_STATUS_RESPONSE = 207;
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
@@ -45,11 +36,9 @@ public class ControllflowWebResource extends AbstractWebResource {
     /**
      * Get specific application id.
      * Returns specific application id of flow rule.
-     *
      * Input:
      *      Param: AppID
      * Output:
-     *      
      *      @return 200 OK
      */
     @GET
@@ -71,22 +60,12 @@ public class ControllflowWebResource extends AbstractWebResource {
     public Response addFlow(InputStream stream) {
         try {
             ControllFlowRule flow = jsonToRule(stream);
-            ObjectMapper mapper = new ObjectMapper();
             ObjectNode GetMessage = get(controllflow.class).AddFlowRuleAPI(flow);
-            log.info(GetMessage.get("Success").asText());
-            if(GetMessage.get("Success").asInt() == 1) {
-                return Response.status(200).entity(GetMessage).build();
-            }
-            else {
-                return Response.serverError().entity(GetMessage).build();
-            }
-            /*
-            return get(controllflow.class).AddFlowRuleAPI(flow) ?
-                    Response.status(200).entity().build() :
-                    Response.serverError().build();*/
+            log.info(GetMessage.get("Code").asText());
+            return Response.status(GetMessage.get("Code").asInt()).entity(GetMessage).build();
         } catch (Exception e) {
             log.info(e.toString());
-            return Response.status(MULTI_STATUS_RESPONSE).entity(e.getMessage()).build();
+            return Response.serverError().entity(e.getMessage()).build();
         }
 
     }
@@ -99,12 +78,22 @@ public class ControllflowWebResource extends AbstractWebResource {
             String Appid;
             node = readTreeFromStream(mapper(), stream);
             Appid = node.get("ApplicationID").asText();
-            return get(controllflow.class).DeleteFlowRuleAPI(Appid) ?
-                    Response.status(200).entity("Delete Success").build() :
-                    Response.serverError().build();
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode RequestMessage = mapper.createObjectNode();
+
+            if(get(controllflow.class).DeleteFlowRuleAPI(Appid)) {
+                RequestMessage.put("Code",200);
+                RequestMessage.put("Message","Delete flow rule success!");
+
+            }
+            else {
+                RequestMessage.put("Code",500);
+                RequestMessage.put("Message","Failed to delete flow rule!");
+            }
+            return Response.status(RequestMessage.get("Code").asInt()).entity(RequestMessage).build();
         } catch (Exception e) {
             log.info(e.toString());
-            return Response.status(MULTI_STATUS_RESPONSE).entity(e.getMessage()).build();
+            return Response.serverError().entity(e.getMessage()).build();
         }
 
     }
@@ -154,7 +143,7 @@ public class ControllflowWebResource extends AbstractWebResource {
             while(elements.hasNext()){
                 JsonNode SourceValue = elements.next();
                 ValueString = SourceValue.get(IndexArray[i]).asText();
-                if (ValueString != "") {
+                if (!ValueString.equals("")) {
                     switch (i) {
                         // EthernetType
                         case 0:
@@ -225,12 +214,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                         // sourceIP
                         case 2:
                             try {
-                                if(ProtocolMark == EthType.EtherType.IPV4) {
-                                    rule.srcIP(Ip4Address.valueOf(ValueString));
-                                }
-                                else if(ProtocolMark == EthType.EtherType.IPV6){
-                                    rule.srcIP(Ip6Address.valueOf(ValueString));
-                                }
+                                rule.srcIP(ValueString);
                             }catch (NullPointerException e) {
                                 throw new IllegalArgumentException("Source IP Error!");
                             }
@@ -246,12 +230,7 @@ public class ControllflowWebResource extends AbstractWebResource {
                         // Destination IP
                         case 4:
                             try {
-                                if(ProtocolMark == EthType.EtherType.IPV4) {
-                                    rule.dstIP(Ip4Address.valueOf(ValueString));
-                                }
-                                else {
-                                    rule.dstIP(Ip6Address.valueOf(ValueString));
-                                }
+                                rule.dstIP(ValueString);
                             }catch (NullPointerException e) {
                                 throw new IllegalArgumentException("Source IP Error!");
                             }
